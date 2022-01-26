@@ -97,7 +97,8 @@ async def registerAccount():
         </body>
     </html>
     """
-    send_mail(email, html)
+    threading.Thread(target=send_mail, args=[email, html], daemon=True)
+    #send_mail(email, html)
     return "1"
 
 @app.route(f"{flask_path}/accounts/loginGJAccount.php", methods=["POST"])
