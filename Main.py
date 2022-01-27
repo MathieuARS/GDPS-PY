@@ -1108,6 +1108,59 @@ async def removeFriend():
     cursor = execute_sql("delete from friends where friend1 = %s and friend2 = %s or friend1 = %s and friend2 = %s", [accountID, targetAccountID, targetAccountID, accountID])
     return "1"
 
+@app.route(f"{flask_path}/getGJRewards.php", methods=["POST"])
+async def getChestReward():
+    accountID = request.values.get("accountID")
+    gjp = request.values.get("gjp")
+    rewardType = request.values.get("rewardType")
+    chk = request.values.get("chk")
+    udid = request.values.get("udid")
+
+    gjp_check = check_gjp(accountID, gjp)
+    if not gjp_check:
+        return "-1"
+
+    chk = xor_cipher(b64_decode(chk[5:]), "59182")
+    cursor = execute_sql("select chest_s_time, chest_b_time, chest_s_count, chest_b_count from accounts where id = %s", [accountID])
+    chests_infos = cursor.fetchall()[0]
+    small_chest_time = chests_infos[0]
+    big_chest_time = chests_infos[1]
+    small_chest_count = chests_infos[2]
+    big_chest_count = chests_infos[3]
+    current_time = int(time.time())
+    small_chest_wait = 3600
+    big_chest_wait = 14400
+
+    small_chest_str = f"{random.randint(200, 400)},{random.randint(2, 10)},{random.randint(1, 6)},{random.randint(1, 6)}"
+    big_chest_str = f"{random.randint(2000, 4000)},{random.randint(20, 100)},{random.randint(1, 6)},{random.randint(1, 6)}"
+
+    small_chest_time_left = small_chest_time - current_time
+    big_chest_time_left = big_chest_time - current_time
+
+    match rewardType:
+        case "1":
+            if small_chest_time > current_time:
+                return "-1"
+            small_chest_count += 1
+            small_chest_time_left = small_chest_wait
+            cursor = execute_sql("update accounts set chest_s_count = chest_s_count + 1, chest_s_time = %s where id = %s", [current_time + small_chest_wait, accountID])
+        case "2":
+            if big_chest_time > current_time:
+                return "-1"
+            big_chest_count += 1
+            big_chest_time_left = big_chest_wait
+            cursor = execute_sql("update accounts set chest_b_count = chest_b_count + 1, chest_b_time = %s where id = %s", [current_time + big_chest_wait, accountID])
+
+    if small_chest_time_left < 0:
+        small_chest_time_left = 0
+    if big_chest_time_left < 0:
+        big_chest_time_left = 0
+
+    chest_response = b64_encode(xor_cipher(f"1:{accountID}:{chk}:{udid}:{accountID}:{abs(small_chest_time_left)}:{small_chest_str}:{small_chest_count}:{abs(big_chest_time_left)}:{big_chest_str}:{big_chest_count}:{rewardType}", "59182")).replace("/", "_").replace("+", "-")
+    response_hash = chest_response + "pC26fpYaQCtg"
+    response_hash = sha1(response_hash.encode()).hexdigest()
+    return f"SaKuJ{chest_response}|{response_hash}"
+
 @app.route("/test", methods=["POST", "GET"])
 async def test():
     return "k"
