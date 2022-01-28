@@ -626,36 +626,40 @@ async def ModSents():
         lvl_infos = cursor.fetchall()[0]
         cursor = execute_sql("update levels set stars = %s, featured = %s, demon = %s, auto = %s, difficulty = %s where id = %s", [stars, feature, demon, auto, difficulty, levelID])
         print(lvl_infos)
-        cursor = execute_sql("select name from accounts where id = %s", [lvl_infos[2]])
-        author_name = cursor.fetchall()[0][0]
-        already_rated = False
-        if lvl_infos[7] > 0:
-            already_rated = True
 
-        time = lvl_infos[5]
-        if lvl_infos[6] == "":
-            description = "No description provided"
-        else:
-            description = b64_decode(lvl_infos[6])
-        length = "Unknown"
-        if time == 0:
-            length = "Tiny"
-        elif time == 1:
-            length = "Short"
-        elif time == 2:
-            length = "Medium"
-        elif time == 3:
-            length = "Long"
-        elif time == 4:
-            length = "XL"
-        title = "A new level got rated!"
-        if already_rated:
-            title = "A level got its rating updated!"
-        data = {"embeds": [{"title": title,
-                            "description" : f"<:play:900086729120292974> **{lvl_infos[1]}** by {author_name} \n<:comment:900091546299424838> {description} \n<:time:900085839399362570> {length} \n<:download:900085215312093194> {lvl_infos[3]} \n<:like:900085517520109599> {lvl_infos[4]} \n🆔 {lvl_infos[0]}",
-                            "color": 65280,
-                            "thumbnail": {"url": f"https://mathieuar.fr/gdps_assets/{image}.png"}}]}
-        requests.post(rate_update_webhook, json = data)
+        def send_discord_message():
+            cursor = execute_sql("select name from accounts where id = %s", [lvl_infos[2]])
+            author_name = cursor.fetchall()[0][0]
+            already_rated = False
+            if lvl_infos[7] > 0:
+                already_rated = True
+
+            time = lvl_infos[5]
+            if lvl_infos[6] == "":
+                description = "No description provided"
+            else:
+                description = b64_decode(lvl_infos[6])
+            length = "Unknown"
+            if time == 0:
+                length = "Tiny"
+            elif time == 1:
+                length = "Short"
+            elif time == 2:
+                length = "Medium"
+            elif time == 3:
+                length = "Long"
+            elif time == 4:
+                length = "XL"
+            title = "A new level got rated!"
+            if already_rated:
+                title = "A level got its rating updated!"
+            data = {"embeds": [{"title": title,
+                                "description" : f"<:play:900086729120292974> **{lvl_infos[1]}** by {author_name} \n<:comment:900091546299424838> {description} \n<:time:900085839399362570> {length} \n<:download:900085215312093194> {lvl_infos[3]} \n<:like:900085517520109599> {lvl_infos[4]} \n🆔 {lvl_infos[0]}",
+                                "color": 65280,
+                                "thumbnail": {"url": f"https://mathieuar.fr/gdps_assets/{image}.png"}}]}
+            requests.post(rate_update_webhook, json = data)
+
+        threading.Thread(target=send_discord_message, daemon=True).start()
         return "1"
 
 @app.route(f"{flask_path}/uploadGJComment21.php", methods=["POST"])
@@ -665,7 +669,6 @@ async def uploadLvlComment():
     comment = request.values.get("comment")
     percent = request.values.get("percent")
     levelID = request.values.get("levelID")
-    print(request.values)
     gjp_check = check_gjp(accountID, gjp)
     if not gjp_check:
         return "-1"
@@ -682,7 +685,6 @@ async def deleteLvlComment():
     gjp = request.values.get("gjp")
     commentID = request.values.get("commentID")
     levelID = request.values.get("levelID")
-    print(request.values)
     gjp_check = check_gjp(accountID, gjp)
     if not gjp_check:
         return "-1"
@@ -780,7 +782,7 @@ async def like():
     if like == 0:
         like = -1
     elif like == 1:
-        like = 1
+        pass
     else:
         print("returned at like")
         return "-1"
@@ -1209,12 +1211,37 @@ async def getMapPacks():
 
 @app.route(f"{flask_path}/getGJChallenges.php", methods=["POST"])
 async def getQuests():
-    #I'm really lazy to do this endpoint
+    accountID = request.values.get("accountID")
+    gjp = request.values.get("gjp")
+    udid = request.values.get("udid")
+    chk = request.values.get("chk")
+    chk = xor_cipher(b64_decode(chk[5:]), "19847")
 
-    page = request.values.get("page")
-    print(request.values)
+    gjp_check = check_gjp(accountID, gjp)
+    if not gjp_check:
+        return "-1"
 
-    return ""
+    cursor = execute_sql("select id,name,type,amount,reward from quests")
+    if cursor.rowcount < 3:
+        return "-1"
+    quests = cursor.fetchall()
+
+    quest1 = random.choice(quests)
+    quests.remove(quest1)
+    quest2 = random.choice(quests)
+    quests.remove(quest2)
+    quest3 = random.choice(quests)
+
+    quest1_resp = f"{quest1[0]},{quest1[2]},{quest1[3]},{quest1[4]},{quest1[1]}"
+    quest2_resp = f"{quest2[0]},{quest2[2]},{quest2[3]},{quest2[4]},{quest2[1]}"
+    quest3_resp = f"{quest3[0]},{quest3[2]},{quest3[3]},{quest3[4]},{quest3[1]}"
+
+    current_time = int(time.time())
+    next_midnight = ((current_time//86400)+1)*86400
+
+    response = b64_encode(xor_cipher(f"SaKuJ:{accountID}:{chk}:{udid}:{accountID}:{next_midnight-current_time}:{quest1_resp}:{quest2_resp}:{quest3_resp}", "19847"))
+    hashed = sha1((response + "oC36fpYaPtdg").encode()).hexdigest()
+    return f"SaKuJ{response}|{hashed}"
 
 @app.route("/test", methods=["POST", "GET"])
 async def test():
