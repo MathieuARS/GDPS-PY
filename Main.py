@@ -676,6 +676,20 @@ async def uploadLvlComment():
     cursor = execute_sql("insert into lvl_comments (author_id,comment,percent,level_id) values (%s,%s,%s,%s)", [accountID, comment, percent, levelID])
     return "1"
 
+@app.route(f"{flask_path}/deleteGJComment20.php", methods=["POST"])
+async def deleteLvlComment():
+    accountID = request.values.get("accountID")
+    gjp = request.values.get("gjp")
+    commentID = request.values.get("commentID")
+    levelID = request.values.get("levelID")
+    print(request.values)
+    gjp_check = check_gjp(accountID, gjp)
+    if not gjp_check:
+        return "-1"
+
+    cursor = execute_sql("delete from lvl_comments where id = %s and level_id = %s and author_id = %s", [commentID, levelID, accountID])
+    return "1"
+
 @app.route(f"{flask_path}/getGJComments21.php", methods=["POST"])
 @app.route(f"{flask_path}/getGJCommentHistory.php", methods=["POST"])
 async def getLvlComments():
@@ -1192,6 +1206,15 @@ async def getMapPacks():
 
     response = f"{pack_str}#{pack_count}:{page}:10#{pack_lvl_hash}"
     return response
+
+@app.route(f"{flask_path}/getGJChallenges.php", methods=["POST"])
+async def getQuests():
+    #I'm really lazy to do this endpoint
+
+    page = request.values.get("page")
+    print(request.values)
+
+    return ""
 
 @app.route("/test", methods=["POST", "GET"])
 async def test():
