@@ -440,6 +440,14 @@ async def getLevels():
         if cursor.rowcount == 0: return "-1"
         else: total_levels = cursor.rowcount
         cursor = execute_sql("select " + needed_infos + base_query + " order by upload_date limit 10 offset %s", [page])
+    elif gd_type == "10":
+        check = re.match(r"^[0-9,]*$", gd_str)
+        if not check: return "-1"
+        base_query = " from levels where id in (" + gd_str + ")"
+        cursor = execute_sql("select null" + base_query)
+        if cursor.rowcount == 0: return "-1"
+        else: total_levels = cursor.rowcount
+        cursor = execute_sql("select " + needed_infos + base_query + " order by upload_date limit 10 offset %s", [page])
     elif gd_type == "11":
         base_query = " from levels where unlisted != 1 and stars > 0"
         cursor = execute_sql("select null" + base_query)
@@ -1165,7 +1173,7 @@ async def getChestReward():
 async def getMapPacks():
     page = request.values.get("page")
     page = int(page)*10
-    
+
     cursor = execute_sql("select id,name,levels,stars,coins,difficulty,color from map_packs order by id asc limit 10 offset %s", [page])
     if cursor.rowcount == 0: return "-1"
     pack_data = cursor.fetchall()
