@@ -1161,6 +1161,30 @@ async def getChestReward():
     response_hash = sha1(response_hash.encode()).hexdigest()
     return f"SaKuJ{chest_response}|{response_hash}"
 
+@app.route(f"{flask_path}/getGJMapPacks21.php", methods=["POST"])
+async def getMapPacks():
+    page = request.values.get("page")
+    page = int(page)*10
+    
+    cursor = execute_sql("select id,name,levels,stars,coins,difficulty,color from map_packs order by id asc limit 10 offset %s", [page])
+    if cursor.rowcount == 0: return "-1"
+    pack_data = cursor.fetchall()
+
+    pack_str = ""
+    pack_ids = []
+    for pack in pack_data:
+        pack_ids.append(pack[0])
+        pack_str = f"{pack_str}1:{pack[0]}:2:{pack[1]}:3:{pack[2]}:4:{pack[3]}:5:{pack[4]}:6:{pack[5]}:7:{pack[6]}:8:{pack[6]}|"
+
+    cursor = execute_sql("select null from map_packs")
+    pack_count = cursor.rowcount
+    pack_str = pack_str[:-1]
+
+    pack_lvl_hash = get_mappacks_hash(pack_ids)
+
+    response = f"{pack_str}#{pack_count}:{page}:10#{pack_lvl_hash}"
+    return response
+
 @app.route("/test", methods=["POST", "GET"])
 async def test():
     return "k"
@@ -1317,6 +1341,15 @@ def get_encoded_lvlstring(lvlstring):
     lvl_hash = lvl_hash + "xI25fpAapCQg"
     encoded = sha1(lvl_hash.encode())
     return encoded.hexdigest()
+
+def get_mappacks_hash(lvl_list):
+    hash = ""
+    for lvl_id in lvl_list:
+        cursor = execute_sql("select id,stars,coins from map_packs where id = %s", [lvl_id])
+        pack_info = cursor.fetchall()[0]
+        hash = f"{hash}{str(pack_info[0])[0]}{str(pack_info[0])[len(str(pack_info[0]))-1]}{pack_info[1]}{pack_info[2]}"
+    hash = hash + "xI25fpAapCQg"
+    return sha1(hash.encode()).hexdigest()
 
 def send_mail(send_to, content):
     message = MIMEMultipart("alternative")
