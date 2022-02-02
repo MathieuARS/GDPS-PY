@@ -97,7 +97,7 @@ async def registerAccount():
         </body>
     </html>
     """
-    threading.Thread(target=send_mail, args=[email, html], daemon=True)
+    threading.Thread(target=send_mail, args=[email, html], daemon=True).start()
     #send_mail(email, html)
     return "1"
 
@@ -114,7 +114,8 @@ async def loginAccount():
         return "-1"
     account_info = cursor.fetchall()[0]
     if account_info[2] == 1:
-        return "-12"
+        if admin_panel != "yes":
+            return "-12"
     encrypted_password = account_info[1]
     cipher_suite = Fernet(encryption_key)
     decrypted_password = cipher_suite.decrypt(encrypted_password.encode()).decode()
